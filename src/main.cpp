@@ -459,31 +459,31 @@ void loop()
   {
     // Serial.print("Batt :");
     Serial.println(persenBatt);
-    if (persenBatt == 0)
-    {
-      // btrai dicabut (batrai drop)
-      hold = true;
-      statBatt = "disable";
-      if (millis() >= uptimebat + periodUpbatt)
-      {
-        uptimebat += periodUpbatt;
-        dataUplink();
-        Serial.println(hold);
-        dataUplink();
-        Serial.println(hold);
-        dataUplink();
-      }
-    }
-    if (persenBatt > 20 && hold == true)
-    {
-      statBatt = String(persenBatt);
-      dataUplink();
-      Serial.println(hold);
-      dataUplink();
-      Serial.println(hold);
-      dataUplink();
-      hold = false;
-    }
+    // if (persenBatt == 0)
+    // {
+    //   // btrai dicabut (batrai drop)
+    //   hold = true;
+    //   statBatt = "disable";
+    //   if (millis() >= uptimebat + periodUpbatt)
+    //   {
+    //     uptimebat += periodUpbatt;
+    //     dataUplink();
+    //     Serial.println(hold);
+    //     dataUplink();
+    //     Serial.println(hold);
+    //     dataUplink();
+    //   }
+    // }
+    // if (persenBatt > 20 && hold == true)
+    // {
+    //   statBatt = String(persenBatt);
+    //   dataUplink();
+    //   Serial.println(hold);
+    //   dataUplink();
+    //   Serial.println(hold);
+    //   dataUplink();
+    //   hold = false;
+    // }
     prosesPengisian();
   }
   else
