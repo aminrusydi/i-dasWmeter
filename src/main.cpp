@@ -7,24 +7,22 @@
 #include <Adafruit_ADS1X15.h>
 Adafruit_ADS1115 ads;
 
-const unsigned long periodUp_idle = 10000;
-unsigned long upIdleTime_now = 0;
-
-const unsigned long periodValve = 1000;
-unsigned long valveTime_now = 0;
-
 // kondisi Button
 const int relayPower = 32;
 const int pbPower = 27;
 const int pbEmergency = 33;
 int kondisiEmergency;
 int kondisiPower;
+int countInProcess = 0;
+
+// millis time
+const unsigned long periodUp_idle = 10000;
+const unsigned long periodBatt = 1500;
+int timeDelay;
 
 // Konfirmasi Data Masuk
 bool confirmTransaction = false;
 bool confirmConfig = false;
-
-// SoftwareSerial Serial1(14, 15);
 
 double latitude;
 double longitude;
@@ -49,10 +47,6 @@ const float multiplier = 0.1875F;
 int persenBatt;
 String statBatt;
 bool hold = false;
-const unsigned long periodBatt = 1000;
-unsigned long battTime_now = 0;
-const unsigned long periodUpbatt = 2000;
-unsigned long uptimebat = 0;
 
 const int numReadings = 10;
 int readings[numReadings]; // the readings from the analog input
@@ -69,7 +63,7 @@ int pembagi;
 int setProgress;
 int statMicro;
 
-const String idDevice = "DASWMETER24VL0001";
+const String idDevice = "DASW240002";
 const int LED2 = 2;
 
 // Config Pin Valve
@@ -77,8 +71,8 @@ const int pinValve = 23;
 const int powerValve = 13;
 
 // Config Pin Lora
-const int configLora = 5;
-const int pinConfig = 4;
+// const int configLora = 5;
+// const int pinConfig = 4;
 
 // Config Pin Cyble Sensor
 const int LF_State = 25;
@@ -132,11 +126,11 @@ void setup()
   pinMode(pinValve, OUTPUT);
   pinMode(powerValve, OUTPUT);
 
-  pinMode(configLora, OUTPUT);
-  pinMode(pinConfig, OUTPUT);
+  // pinMode(configLora, OUTPUT);
+  // pinMode(pinConfig, OUTPUT);
 
-  digitalWrite(configLora, LOW);
-  digitalWrite(pinConfig, LOW);
+  // digitalWrite(configLora, LOW);
+  // digitalWrite(pinConfig, LOW);
 
   pinMode(LF_State, INPUT);
   pinMode(HF_State, INPUT);
@@ -188,27 +182,27 @@ void readGPS()
       return;
     }
 
-    double latitudee = datagps["lat"];   // "0000"
-    double longitudee = datagps["long"]; // "0000"
-    latitude = latitudee;
-    longitude = longitudee;
+    double latitudeGPS = datagps["lat"];   // "0000"
+    double longitudeGPS = datagps["long"]; // "0000"
+    latitude = latitudeGPS;
+    longitude = longitudeGPS;
 
-    StaticJsonDocument<500> doc;
-    EepromStream eepromStream(0, 500);
+    // StaticJsonDocument<500> doc;
+    // EepromStream eepromStream(0, 500);
 
-    doc["lf"] = CybleCounter_LF;
-    doc["lat"] = latitude;
-    doc["long"] = longitude;
-    doc["lfB"] = logCyble;
-    doc["lB"] = logLiter;
-    eepromStream.flush();
-    serializeJson(doc, eepromStream);
+    // doc["lf"] = CybleCounter_LF;
+    // doc["lat"] = latitude;
+    // doc["long"] = longitude;
+    // doc["lfB"] = logCyble;
+    // doc["lB"] = logLiter;
+    // eepromStream.flush();
+    // serializeJson(doc, eepromStream);
   }
 }
 
 void dataUplink()
 {
-  location = String(latitude, 6) + "," + String(longitude, 6);
+  location = String(latitude, 7) + "," + String(longitude, 7);
   // flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   // dataLog = String(logCyble) + "," + String(logLiter);
 
@@ -225,7 +219,7 @@ void dataUplink()
 
 void antarMicroProses()
 {
-  StaticJsonDocument<150> microProses;
+  StaticJsonDocument<250> microProses;
   microProses["req"] = jumlahPesanan;
   microProses["stan"] = CybleCounter_LF;
   microProses["count"] = literCounter;
@@ -234,58 +228,71 @@ void antarMicroProses()
   serializeJson(microProses, Serial1);
 }
 
+void endProses()
+{
+  digitalWrite(pinValve, LOW);
+  Serial.println("Stoping Valve");
+  status = "3";
+  flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+  dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
+  statBatt = String(persenBatt);
+  logCyble = CybleCounter_LF;
+  logLiter = literCounter;
+  Serial.println("Stoping Process");
+  dataUplink();
+  Serial.println("Uplink");
+  delay(500);
+  Serial.println("Stoping Process");
+  delay(1000);
+  dataUplink();
+  delay(1500);
+  dataUplink();
+  delay(15000);
+  digitalWrite(pbPower, LOW);
+  idle = 1;
+  delay(2000);
+  resetFunc();
+}
+
 void prosesPengisian()
 {
 
   digitalWrite(pinValve, HIGH);
   digitalWrite(pbPower, HIGH);
   Serial.println(CybleCounter_LF);
-  Serial.print("Set : ");
-  Serial.println(setProgress);
 
-  if (literCounter == setProgress)
+  // Serial.print("Set : ");
+  // Serial.println(setProgress);
+
+  // if (literCounter == setProgress)
+  // {
+  //   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+  //   statBatt = String(persenBatt);
+  //   status = "6"; // Progress Air
+  //   dataUplink();
+  //   setProgress = setProgress + pembagi;
+  //   // delay(500);
+  //   dataUplink();
+  //   Serial.println("Masuk Counting");
+  //   dataUplink();
+  //   Serial.println("Uplink");
+  //   dataUplink();
+  //   Serial.println("Uplink");
+  //   dataUplink();
+  // }
+  if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
   {
-    flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-    statBatt = String(persenBatt);
-    status = "6"; // Progress Air
-    dataUplink();
-    setProgress = setProgress + pembagi;
-    // delay(500);
-    dataUplink();
-    Serial.println("Masuk Counting");
-    dataUplink();
-    Serial.println("Uplink");
-    dataUplink();
-    Serial.println("Uplink");
-    dataUplink();
-  }
-  if (literCounter = jumlahPesanan || kondisiEmergency == 0 || (persenBatt > 0 && persenBatt < 20) || (literCounter >= jumlahPesanan && persenBatt > 20))
-  {
-    digitalWrite(pinValve, LOW);
-    status = "3";
-    flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-    dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
-    statBatt = String(persenBatt);
-    // Transaction Done
-    logCyble = CybleCounter_LF;
-    logLiter = literCounter;
-    Serial.println("Stoping Process");
-    dataUplink();
-    Serial.println("Stoping Process");
-    delay(5000);
-    dataUplink();
-    delay(5000);
-    dataUplink();
-    delay(5000);
-    dataUplink();
-    delay(15000);
-    statMicro = 0;
+    statMicro = 3;
     antarMicroProses();
-    delay(2000);
-    digitalWrite(pbPower, LOW);
-    resetFunc();
-
-    idle = 1;
+    delay(2500);
+    endProses();
+  }
+  if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
+  {
+    statMicro = 3;
+    antarMicroProses();
+    delay(2500);
+    endProses();
   }
 }
 
@@ -307,14 +314,15 @@ void dataDownlink()
 
     for (JsonObject txInfo_item : list["downlink"].as<JsonArray>())
     {
-      const char *txInfo_item_forID = txInfo_item["ID"];                         // "DASWMETER24VL0001", "DASWMETER24VL0002"
-      const char *txInfo_item_time = txInfo_item["time"];                        // "2023-02-28T05:41:11.038813Z", ...
+      const char *txInfo_item_forID = txInfo_item["ID"];                         // "DASWMETER24VL0001", "DASWMETER24VL0001"
       int txInfo_item_transaction_status = txInfo_item["transaction"]["status"]; // 1, 1
       int txInfo_item_transaction_volume = txInfo_item["transaction"]["volume"]; // 0, 0
+      int txInfo_item_transaction_delay = txInfo_item["transaction"]["delay"];
 
       if (String(txInfo_item_forID) == idDevice)
       {
         jumlahPesanan = txInfo_item_transaction_volume;
+        timeDelay = txInfo_item_transaction_delay;
         Serial.print("ID :");
         Serial.print(txInfo_item_forID);
         Serial.print(" volume : ");
@@ -322,30 +330,49 @@ void dataDownlink()
 
         if (txInfo_item_transaction_status == 1)
         {
-          if (jumlahPesanan >= 500)
+          if (persenBatt >= 20)
           {
-            pembagi = jumlahPesanan / 5;
-            setProgress = pembagi;
-            // Serial.println(pembagi);
+            digitalWrite(pinValve, HIGH);
+            delay(1500);
+            kondisiEmergency = digitalRead(pbEmergency);
+            delay(150);
+            Serial.print("Emergency 0 ? ");
+            Serial.println(kondisiEmergency);
+            if (kondisiEmergency == 0)
+            {
+              Serial.println("Emergency BOS");
+              statMicro = 2;
+              antarMicroProses();
+              delay(100);
+              digitalWrite(pinValve, LOW);
+            }
+            else
+            {
+              cybleSebelumnya = logCyble;
+              literSebelumnya = logLiter;
+              status = "2"; // Transaction Received
+              statMicro = 1;
+              antarMicroProses();
+              delay(50 + timeDelay);
+              dataUplink();
+              delay(70 + timeDelay);
+              dataUplink();
+              idle = 0;
+            }
           }
-          cybleSebelumnya = logCyble;
-          literSebelumnya = logLiter;
-          status = "2"; // Transaction Received
-          idle = 0;
-          dataUplink();
-          delay(500);
-          dataUplink();
-          statMicro = 1;
-          antarMicroProses();
-          delay(1000);
         }
-        else if (txInfo_item_transaction_status == 2)
+        if (txInfo_item_transaction_status == 2)
         {
           antarMicroProses();
+          delay(150);
+          status = "2"; // Transaction Received
           cybleSebelumnya = logCyble;
           literSebelumnya = logLiter;
+          Serial.print("Pesanan Masuk : ");
           Serial.println(jumlahPesanan);
-          status = "2"; // Transaction Received
+          delay(150 + timeDelay);
+          dataUplink();
+          delay(150 + timeDelay);
           dataUplink();
         }
       }
@@ -355,9 +382,10 @@ void dataDownlink()
 
 void bacaBattrey()
 {
-  if (millis() >= battTime_now + periodBatt)
+  static uint32_t battTime_now = millis();
+  if ((millis() - battTime_now) > periodBatt)
   {
-    battTime_now += periodBatt;
+    battTime_now = millis();
     int16_t adc0, adc1, adc2, adc3;
 
     adc0 = ads.readADC_SingleEnded(0);
@@ -390,22 +418,32 @@ void loop()
   // StaticJsonDocument<500> doc;
   // EepromStream eepromStream(0, 500);
 
-  // doc["lf"] = 1221;
+  // doc["lf"] = 10;
   // doc["lat"] = latitude;
   // doc["long"] = longitude;
   // doc["lfB"] = logCyble;
   // doc["lB"] = logLiter;
   // serializeJson(doc, eepromStream);
-
   // eepromStream.flush();
+
+  // doc["lf"] = 0;
+  // doc["lat"] = "0000000";
+  // doc["long"] = "000000";
+  // doc["lfB"] = "0";
+  // doc["lB"] = "0";
+  // serializeJson(doc, eepromStream);
+  // eepromStream.flush();
+
   // Serial.print("Idle :");
   // Serial.println(idle);
 
-  SensorState_LF = digitalRead(LF_State);
-  kondisiEmergency = digitalRead(pbEmergency);
-  bacaBattrey();
-  Serial.println(pembagi);
+  // Time Millis Count
+  static uint32_t upIdleTime_now = millis();
+  static uint32_t timeProgress = millis();
+  static uint32_t timeStart = millis();
+  static uint32_t timeReadLF = millis();
 
+  bacaBattrey();
   if (SensorState_LF != lastSensorState_LF)
   {
     if (SensorState_LF == LOW)
@@ -428,6 +466,8 @@ void loop()
         literCounter = literCounter + 100;
         statMicro = 1;
         antarMicroProses();
+        Serial.print("count : ");
+        Serial.println(literCounter);
       }
     }
     lastSensorState_LF = SensorState_LF;
@@ -435,21 +475,24 @@ void loop()
 
   if (idle == 1)
   {
+    SensorState_LF = digitalRead(LF_State);
     readGPS();
     digitalWrite(pbPower, LOW);
     // Serial.print("Batt :");
-    Serial.println(persenBatt);
+    // Serial.println(persenBatt);
     dataDownlink();
     literCounter = 0;
     setProgress = 0;
+    countInProcess = 0;
 
-    if (millis() >= upIdleTime_now + periodUp_idle)
+    if ((millis() - upIdleTime_now) > periodUp_idle)
     {
-      antarMicroProses();
-      upIdleTime_now += periodUp_idle;
+      upIdleTime_now = millis();
       flowSend = "0,0";
       dataLog = String(logCyble) + "," + String(logLiter);
       status = "1"; // Siap Digunakan
+      antarMicroProses();
+      Serial.println("Idle");
       dataUplink();
       Serial.println(logLiter);
     }
@@ -457,34 +500,33 @@ void loop()
 
   if (idle == 0)
   {
-    // Serial.print("Batt :");
-    Serial.println(persenBatt);
-    // if (persenBatt == 0)
-    // {
-    //   // btrai dicabut (batrai drop)
-    //   hold = true;
-    //   statBatt = "disable";
-    //   if (millis() >= uptimebat + periodUpbatt)
-    //   {
-    //     uptimebat += periodUpbatt;
-    //     dataUplink();
-    //     Serial.println(hold);
-    //     dataUplink();
-    //     Serial.println(hold);
-    //     dataUplink();
-    //   }
-    // }
-    // if (persenBatt > 20 && hold == true)
-    // {
-    //   statBatt = String(persenBatt);
-    //   dataUplink();
-    //   Serial.println(hold);
-    //   dataUplink();
-    //   Serial.println(hold);
-    //   dataUplink();
-    //   hold = false;
-    // }
+    kondisiEmergency = digitalRead(pbEmergency);
+    Serial.print("E : ");
+    Serial.println(kondisiEmergency);
+    if ((millis() - timeReadLF) > 1000)
+    {
+      timeReadLF = millis();
+      if (countInProcess <= 15)
+      {
+        countInProcess++;
+        // Serial.print("count :");
+        // Serial.println(countInProcess);
+      }
+    }
+    if (countInProcess >= 15)
+    {
+      // Serial.println("Baca Sensor");
+      SensorState_LF = digitalRead(LF_State);
+    }
     prosesPengisian();
+    if ((millis() - timeProgress) > (120000 + timeDelay))
+    {
+      timeProgress = millis();
+      flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+      statBatt = String(persenBatt);
+      status = "6"; // Progress Air
+      dataUplink();
+    }
   }
   else
   {
