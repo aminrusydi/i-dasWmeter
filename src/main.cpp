@@ -62,7 +62,6 @@ int jumlahPesanan = 0;
 int pembagi;
 int setProgress;
 int statMicro;
-bool startCounting;
 
 const String idDevice = "DASW240002";
 const int LED2 = 2;
@@ -425,63 +424,8 @@ void loop()
   static uint32_t timeStart = millis();
   static uint32_t timeReadLF = millis();
 
-  kondisiEmergency = digitalRead(pbEmergency);
   bacaBattrey();
-
-  if (idle == 1)
-  {
-    SensorState_LF = digitalRead(LF_State);
-    readGPS();
-    digitalWrite(pbPower, LOW);
-    dataDownlink();
-    literCounter = 0;
-    setProgress = 0;
-    countInProcess = 0;
-
-    if ((millis() - upIdleTime_now) > periodUp_idle)
-    {
-      upIdleTime_now = millis();
-      flowSend = "0,0";
-      dataLog = String(logCyble) + "," + String(logLiter);
-      status = "1"; // Siap Digunakan
-      antarMicroProses();
-      Serial.println("Idle");
-      dataUplink();
-      Serial.println(logLiter);
-    }
-  }
-
-  if (idle == 0)
-  {
-
-    if ((millis() - timeReadLF) > 1000)
-    {
-      timeReadLF = millis();
-      if (countInProcess <= 15)
-      {
-        countInProcess++;
-      }
-    }
-    if (countInProcess >= 15)
-    {
-      startCounting = true;
-    }
-
-    if (startCounting)
-    {
-      SensorState_LF = digitalRead(LF_State);
-      prosesPengisian();
-    }
-
-    if ((millis() - timeProgress) > (120000 + timeDelay))
-    {
-      timeProgress = millis();
-      flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-      statBatt = String(persenBatt);
-      status = "6"; // Progress Air
-      dataUplink();
-    }
-  }
+  kondisiEmergency = digitalRead(pbEmergency);
 
   if (SensorState_LF != lastSensorState_LF)
   {
@@ -510,8 +454,55 @@ void loop()
     }
     lastSensorState_LF = SensorState_LF;
   }
-  else
+
+  if (idle == 0)
   {
+    if (countInProcess >= 15)
+    {
+      SensorState_LF = digitalRead(LF_State);
+      prosesPengisian();
+    }
+
+    if ((millis() - timeReadLF) > 1000)
+    {
+      timeReadLF = millis();
+      if (countInProcess <= 15)
+      {
+        countInProcess++;
+      }
+    }
+
+    if ((millis() - timeProgress) > (120000 + timeDelay))
+    {
+      timeProgress = millis();
+      flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+      statBatt = String(persenBatt);
+      status = "6"; // Progress Air
+      dataUplink();
+    }
+  }
+
+  if (idle == 1)
+  {
+    SensorState_LF = digitalRead(LF_State);
+    readGPS();
+    digitalWrite(pbPower, LOW);
     digitalWrite(pinValve, LOW);
+    dataDownlink();
+    literCounter = 0;
+    setProgress = 0;
+    countInProcess = 0;
+
+    if ((millis() - upIdleTime_now) > periodUp_idle)
+    {
+      upIdleTime_now = millis();
+      flowSend = "0,0";
+      dataLog = String(logCyble) + "," + String(logLiter);
+      status = "1"; // Siap Digunakan
+      antarMicroProses();
+      Serial.println("Idle");
+      dataUplink();
+      Serial.println(logLiter);
+    }
   }
 }
