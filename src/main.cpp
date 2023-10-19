@@ -261,25 +261,6 @@ void prosesPengisian()
   digitalWrite(pbPower, HIGH);
   Serial.println(CybleCounter_LF);
 
-  // Serial.print("Set : ");
-  // Serial.println(setProgress);
-
-  // if (literCounter == setProgress)
-  // {
-  //   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-  //   statBatt = String(persenBatt);
-  //   status = "6"; // Progress Air
-  //   dataUplink();
-  //   setProgress = setProgress + pembagi;
-  //   // delay(500);
-  //   dataUplink();
-  //   Serial.println("Masuk Counting");
-  //   dataUplink();
-  //   Serial.println("Uplink");
-  //   dataUplink();
-  //   Serial.println("Uplink");
-  //   dataUplink();
-  // }
   if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
   {
     statMicro = 3;
