@@ -424,6 +424,7 @@ void loop()
   static uint32_t timeStart = millis();
   static uint32_t timeReadLF = millis();
 
+  kondisiEmergency = digitalRead(pbEmergency);
   bacaBattrey();
   if (SensorState_LF != lastSensorState_LF)
   {
@@ -481,17 +482,13 @@ void loop()
 
   if (idle == 0)
   {
-    kondisiEmergency = digitalRead(pbEmergency);
-    Serial.print("E : ");
-    Serial.println(kondisiEmergency);
+
     if ((millis() - timeReadLF) > 1000)
     {
       timeReadLF = millis();
       if (countInProcess <= 15)
       {
         countInProcess++;
-        // Serial.print("count :");
-        // Serial.println(countInProcess);
       }
     }
     if (countInProcess >= 15)
