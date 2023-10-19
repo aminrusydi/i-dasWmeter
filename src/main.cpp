@@ -62,6 +62,7 @@ int jumlahPesanan = 0;
 int pembagi;
 int setProgress;
 int statMicro;
+bool startCounting;
 
 const String idDevice = "DASW240002";
 const int LED2 = 2;
@@ -388,8 +389,8 @@ void bacaBattrey()
       persenBatt = 0;
     }
     statBatt = String(persenBatt);
-    Serial.print("Batt: ");
-    Serial.println(persenBatt);
+    // Serial.print("Batt: ");
+    // Serial.println(persenBatt);
   }
 }
 
@@ -426,42 +427,12 @@ void loop()
 
   kondisiEmergency = digitalRead(pbEmergency);
   bacaBattrey();
-  if (SensorState_LF != lastSensorState_LF)
-  {
-    if (SensorState_LF == LOW)
-    {
-      CybleCounter_LF++;
-
-      StaticJsonDocument<500> doc;
-      EepromStream eepromStream(0, 500);
-
-      doc["lf"] = CybleCounter_LF;
-      doc["lat"] = latitude;
-      doc["long"] = longitude;
-      doc["lfB"] = logCyble;
-      doc["lB"] = logLiter;
-      serializeJson(doc, eepromStream);
-      eepromStream.flush();
-
-      if (idle == 0)
-      {
-        literCounter = literCounter + 100;
-        statMicro = 1;
-        antarMicroProses();
-        Serial.print("count : ");
-        Serial.println(literCounter);
-      }
-    }
-    lastSensorState_LF = SensorState_LF;
-  }
 
   if (idle == 1)
   {
     SensorState_LF = digitalRead(LF_State);
     readGPS();
     digitalWrite(pbPower, LOW);
-    // Serial.print("Batt :");
-    // Serial.println(persenBatt);
     dataDownlink();
     literCounter = 0;
     setProgress = 0;
@@ -493,10 +464,15 @@ void loop()
     }
     if (countInProcess >= 15)
     {
-      // Serial.println("Baca Sensor");
-      SensorState_LF = digitalRead(LF_State);
+      startCounting = true;
     }
-    prosesPengisian();
+
+    if (startCounting)
+    {
+      SensorState_LF = digitalRead(LF_State);
+      prosesPengisian();
+    }
+
     if ((millis() - timeProgress) > (120000 + timeDelay))
     {
       timeProgress = millis();
@@ -505,6 +481,34 @@ void loop()
       status = "6"; // Progress Air
       dataUplink();
     }
+  }
+
+  if (SensorState_LF != lastSensorState_LF)
+  {
+    if (SensorState_LF == LOW)
+    {
+      CybleCounter_LF++;
+
+      StaticJsonDocument<500> doc;
+      EepromStream eepromStream(0, 500);
+
+      doc["lf"] = CybleCounter_LF;
+      doc["lat"] = latitude;
+      doc["long"] = longitude;
+      doc["lfB"] = logCyble;
+      doc["lB"] = logLiter;
+      serializeJson(doc, eepromStream);
+      eepromStream.flush();
+
+      if (idle == 0)
+      {
+        literCounter = literCounter + 100;
+        statMicro = 1;
+        antarMicroProses();
+        Serial.println(literCounter);
+      }
+    }
+    lastSensorState_LF = SensorState_LF;
   }
   else
   {
