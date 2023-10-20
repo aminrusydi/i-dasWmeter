@@ -48,11 +48,8 @@ int persenBatt;
 String statBatt;
 bool hold = false;
 
-const int numReadings = 10;
-int readings[numReadings]; // the readings from the analog input
-int readIndex = 0;         // the index of the current reading
-int total = 0;             // the running total
-int average = 0;
+bool countReset = 0;
+int countTimeout = 0;
 
 // Kondisi Proses
 bool snyc = 1;
@@ -313,6 +310,8 @@ void dataDownlink()
         {
           if (persenBatt >= 20)
           {
+            countReset = 0;
+            countTimeout = 0;
             digitalWrite(pinValve, HIGH);
             delay(1500);
             kondisiEmergency = digitalRead(pbEmergency);
@@ -355,6 +354,7 @@ void dataDownlink()
           dataUplink();
           delay(150 + timeDelay);
           dataUplink();
+          countReset = 1;
         }
       }
     }
@@ -423,6 +423,7 @@ void loop()
   static uint32_t timeProgress = millis();
   static uint32_t timeStart = millis();
   static uint32_t timeReadLF = millis();
+  static uint32_t timeTimeout = millis();
 
   bacaBattrey();
   kondisiEmergency = digitalRead(pbEmergency);
@@ -484,6 +485,7 @@ void loop()
 
   if (idle == 1)
   {
+
     SensorState_LF = digitalRead(LF_State);
     readGPS();
     digitalWrite(pbPower, LOW);
@@ -492,6 +494,19 @@ void loop()
     literCounter = 0;
     setProgress = 0;
     countInProcess = 0;
+    if (countReset)
+    {
+      if ((millis() - timeTimeout) > 1000)
+      {
+        timeTimeout = millis();
+        countTimeout++;
+        Serial.println(countTimeout);
+      }
+      if (countTimeout >= 25)
+      {
+        resetFunc();
+      }
+    }
 
     if ((millis() - upIdleTime_now) > periodUp_idle)
     {
