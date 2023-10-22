@@ -372,7 +372,7 @@ void loop()
   // doc["long"] = longitude;
   // doc["lfB"] = logCyble;
   // doc["lB"] = logLiter;
-  // doc["reqID"] = requestID;
+  // doc["reqID"] = "0000000000";
   // serializeJson(doc, eepromStream);
   // eepromStream.flush();
 
