@@ -40,6 +40,7 @@ int logLiter;
 
 int cybleSebelumnya;
 int literSebelumnya;
+double requestID;
 
 // battrey
 float battVolt;
@@ -67,13 +68,8 @@ const int LED2 = 2;
 const int pinValve = 23;
 const int powerValve = 13;
 
-// Config Pin Lora
-// const int configLora = 5;
-// const int pinConfig = 4;
-
 // Config Pin Cyble Sensor
 const int LF_State = 25;
-const int HF_State = 26;
 
 // Cyble Counter
 int literCounter = 0;
@@ -88,31 +84,13 @@ int lastSensorState_HF = 0;
 int CableState = 0;
 int DIRState = 0;
 
-void setCounter(int nilai)
-{
-  Serial.println("Set LF");
-  StaticJsonDocument<500> doc;
-  EepromStream eepromStream(0, 500);
-
-  // EepromStream eepromStream(0, 30);
-  doc["lf"] = nilai;
-  doc["lat"] = 0;
-  doc["long"] = 0;
-  doc["lfB"] = nilai;
-  doc["lB"] = 0;
-  serializeJson(doc, eepromStream);
-  // EEPROM.commit();
-  eepromStream.flush();
-}
-
 void setup()
 {
   EEPROM.begin(512);
   Serial.begin(19200);
   Serial2.begin(19200);
   Serial1.begin(19200, SERIAL_8N1, 14, 15);
-  // Wire.begin();
-  // customKeypad.begin();
+
   ads.begin();
 
   // kondisiButton
@@ -123,14 +101,7 @@ void setup()
   pinMode(pinValve, OUTPUT);
   pinMode(powerValve, OUTPUT);
 
-  // pinMode(configLora, OUTPUT);
-  // pinMode(pinConfig, OUTPUT);
-
-  // digitalWrite(configLora, LOW);
-  // digitalWrite(pinConfig, LOW);
-
   pinMode(LF_State, INPUT);
-  pinMode(HF_State, INPUT);
   StaticJsonDocument<500> doc;
   EepromStream eepromStream(0, 500);
   deserializeJson(doc, eepromStream);
@@ -145,6 +116,7 @@ void setup()
     longitude = doc["long"];
     logCyble = CybleCounter_LF;
     logLiter = doc["lB"];
+    requestID = doc["reqID"];
   }
   else
   {
@@ -153,9 +125,6 @@ void setup()
 
   delay(1000);
 
-  // setCounter(109);
-  // digitalWrite(relayPower, HIGH);
-  // digitalWrite(LED2, HIGH);
   digitalWrite(powerValve, HIGH);
   digitalWrite(pinValve, LOW);
 
@@ -200,12 +169,11 @@ void readGPS()
 void dataUplink()
 {
   location = String(latitude, 7) + "," + String(longitude, 7);
-  // flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-  // dataLog = String(logCyble) + "," + String(logLiter);
 
   StaticJsonDocument<256> dataUp;
 
   dataUp["nodeID"] = idDevice;
+  dataUp["reqID"] = String(requestID);
   dataUp["loc"] = location;
   dataUp["Batt"] = String(statBatt) + "%";
   dataUp["status"] = status;
@@ -216,12 +184,12 @@ void dataUplink()
 
 void antarMicroProses()
 {
-  StaticJsonDocument<250> microProses;
+  StaticJsonDocument<300> microProses;
+  microProses["reqID"] = requestID;
   microProses["req"] = jumlahPesanan;
   microProses["stan"] = CybleCounter_LF;
   microProses["count"] = literCounter;
   microProses["microStat"] = statMicro;
-  // microProses["batt"] = persenBatt;
   serializeJson(microProses, Serial1);
 }
 
@@ -295,11 +263,13 @@ void dataDownlink()
       const char *txInfo_item_forID = txInfo_item["ID"];                         // "DASWMETER24VL0001", "DASWMETER24VL0001"
       int txInfo_item_transaction_status = txInfo_item["transaction"]["status"]; // 1, 1
       int txInfo_item_transaction_volume = txInfo_item["transaction"]["volume"]; // 0, 0
+      int txInfo_item_transaction_id = txInfo_item["transaction"]["reqID"];      // 0, 0
       int txInfo_item_transaction_delay = txInfo_item["transaction"]["delay"];
 
       if (String(txInfo_item_forID) == idDevice)
       {
         jumlahPesanan = txInfo_item_transaction_volume;
+        requestID = txInfo_item_transaction_id;
         timeDelay = txInfo_item_transaction_delay;
         Serial.print("ID :");
         Serial.print(txInfo_item_forID);
@@ -316,11 +286,9 @@ void dataDownlink()
             delay(1500);
             kondisiEmergency = digitalRead(pbEmergency);
             delay(150);
-            Serial.print("Emergency 0 ? ");
             Serial.println(kondisiEmergency);
             if (kondisiEmergency == 0)
             {
-              Serial.println("Emergency BOS");
               statMicro = 2;
               antarMicroProses();
               delay(100);
@@ -404,14 +372,7 @@ void loop()
   // doc["long"] = longitude;
   // doc["lfB"] = logCyble;
   // doc["lB"] = logLiter;
-  // serializeJson(doc, eepromStream);
-  // eepromStream.flush();
-
-  // doc["lf"] = 0;
-  // doc["lat"] = "0000000";
-  // doc["long"] = "000000";
-  // doc["lfB"] = "0";
-  // doc["lB"] = "0";
+  // doc["reqID"] = requestID;
   // serializeJson(doc, eepromStream);
   // eepromStream.flush();
 
