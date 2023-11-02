@@ -63,7 +63,7 @@ int pembagi;
 int setProgress;
 int statMicro;
 
-const String idDevice = "DASW240001";
+const String idDevice = "DASW240003";
 const int LED2 = 2;
 
 // Config Pin Valve
@@ -216,7 +216,7 @@ void endProses()
       Serial.println("Uplink");
     }
   }
-  if (countEndProcess >= 20)
+  if (countEndProcess >= 17)
   {
     callEnd = 1;
     digitalWrite(pbPower, LOW);
@@ -244,10 +244,12 @@ void endProses()
 void prosesPengisian()
 {
 
-  digitalWrite(pinValve, HIGH);
-  digitalWrite(pbPower, HIGH);
-  Serial.println(CybleCounter_LF);
-
+  if (!callEnd)
+  {
+    digitalWrite(pinValve, HIGH);
+    digitalWrite(pbPower, HIGH);
+    Serial.println(CybleCounter_LF);
+  }
   if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
   {
     statMicro = 3;
@@ -263,10 +265,6 @@ void prosesPengisian()
     antarMicroProses();
     delay(2000 + timeDelay);
     callEnd = 1;
-  }
-  if (callEnd)
-  {
-    endProses();
   }
 }
 
@@ -510,5 +508,12 @@ void loop()
       dataUplink();
       Serial.println(logLiter);
     }
+  }
+
+  if (callEnd)
+  {
+    endProses();
+    Serial.print("Count End :");
+    Serial.println(countEndProcess);
   }
 }
