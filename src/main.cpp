@@ -54,6 +54,7 @@ bool countReset = 0;
 int countTimeout = 0;
 
 // Kondisi Proses
+bool callEnd = 0;
 bool snyc = 1;
 bool idle = 1;
 bool process = 0;
@@ -197,6 +198,7 @@ void antarMicroProses()
 void endProses()
 {
   static uint32_t sendEndProcess = millis();
+  digitalWrite(pinValve, LOW);
   Serial.println("Stoping Valve");
   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
@@ -204,7 +206,7 @@ void endProses()
   logCyble = CybleCounter_LF;
   logLiter = literCounter;
 
-  if ((millis() - sendEndProcess) > 1000)
+  if ((millis() - sendEndProcess) > (1500 + timeDelay))
   {
     sendEndProcess = millis();
     countEndProcess++;
@@ -216,6 +218,7 @@ void endProses()
   }
   if (countEndProcess >= 20)
   {
+    callEnd = 1;
     digitalWrite(pbPower, LOW);
     countEndProcess = 0;
     idle = 1;
@@ -251,9 +254,7 @@ void prosesPengisian()
     status = "4";
     antarMicroProses();
     delay(2000 + timeDelay);
-    digitalWrite(pinValve, LOW);
-    delay(500);
-    endProses();
+    callEnd = 1;
   }
   if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
   {
@@ -261,8 +262,10 @@ void prosesPengisian()
     status = "3";
     antarMicroProses();
     delay(2000 + timeDelay);
-    digitalWrite(pinValve, LOW);
-    delay(500);
+    callEnd = 1;
+  }
+  if (callEnd)
+  {
     endProses();
   }
 }
