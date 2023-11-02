@@ -199,7 +199,6 @@ void endProses()
   static uint32_t sendEndProcess;
   digitalWrite(pinValve, LOW);
   Serial.println("Stoping Valve");
-  status = "3";
   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
   statBatt = String(persenBatt);
@@ -246,6 +245,7 @@ void prosesPengisian()
   if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
   {
     statMicro = 3;
+    status = "4";
     antarMicroProses();
     delay(2500);
     endProses();
@@ -253,6 +253,7 @@ void prosesPengisian()
   if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
   {
     statMicro = 3;
+    status = "3";
     antarMicroProses();
     delay(2500);
     endProses();
