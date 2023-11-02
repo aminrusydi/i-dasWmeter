@@ -72,6 +72,7 @@ const int powerValve = 13;
 
 // Config Pin Cyble Sensor
 const int LF_State = 25;
+bool saveCount = 0;
 
 // Cyble Counter
 int literCounter = 0;
@@ -154,17 +155,6 @@ void readGPS()
     double longitudeGPS = datagps["long"]; // "0000"
     latitude = latitudeGPS;
     longitude = longitudeGPS;
-
-    // StaticJsonDocument<500> doc;
-    // EepromStream eepromStream(0, 500);
-
-    // doc["lf"] = CybleCounter_LF;
-    // doc["lat"] = latitude;
-    // doc["long"] = longitude;
-    // doc["lfB"] = logCyble;
-    // doc["lB"] = logLiter;
-    // eepromStream.flush();
-    // serializeJson(doc, eepromStream);
   }
 }
 
@@ -199,7 +189,7 @@ void endProses()
 {
   static uint32_t sendEndProcess = millis();
   digitalWrite(pinValve, LOW);
-  Serial.println("Stoping Valve");
+  // Serial.println("Stoping Valve");
   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
   statBatt = String(persenBatt);
@@ -210,45 +200,36 @@ void endProses()
   {
     sendEndProcess = millis();
     countEndProcess++;
-    if (countEndProcess % 2 == 0)
+    if (countEndProcess >= 15 && countEndProcess % 2 == 0)
     {
       dataUplink();
       Serial.println("Uplink");
     }
   }
-  if (countEndProcess >= 17)
+  if (countEndProcess >= 30)
   {
     callEnd = 1;
     digitalWrite(pbPower, LOW);
     countEndProcess = 0;
     idle = 1;
     delay(2000);
+    literCounter = 0;
     resetFunc();
   }
-  //   Serial.println("Stoping Process");
-  // dataUplink();
-  // Serial.println("Uplink");
-  // delay(500);
-  // Serial.println("Stoping Process");
-  // delay(1000);
-  // dataUplink();
-  // delay(1500);
-  // dataUplink();
-  // delay(5000);
-  // dataUplink();
-  // delay(5000);
-  // dataUplink();
-  // delay(15000);
 }
 
 void prosesPengisian()
 {
+  static uint32_t timeReadLF = millis();
+  static uint32_t timeProgress = millis();
+  Serial.print("E: ");
+  Serial.println(kondisiEmergency);
 
   if (!callEnd)
   {
     digitalWrite(pinValve, HIGH);
     digitalWrite(pbPower, HIGH);
-    Serial.println(CybleCounter_LF);
+    // Serial.println(CybleCounter_LF);
   }
   if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
   {
@@ -265,6 +246,26 @@ void prosesPengisian()
     antarMicroProses();
     delay(2000 + timeDelay);
     callEnd = 1;
+  }
+  if ((millis() - timeReadLF) > 1000)
+  {
+    timeReadLF = millis();
+    if (countInProcess <= 15)
+    {
+      countInProcess++;
+    }
+  }
+  if (countInProcess >= 15)
+  {
+    saveCount = 1;
+  }
+  if ((millis() - timeProgress) > (120000 + timeDelay))
+  {
+    timeProgress = millis();
+    flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+    statBatt = String(persenBatt);
+    status = "6"; // Progress Air
+    dataUplink();
   }
 }
 
@@ -302,7 +303,9 @@ void dataDownlink()
         Serial.print("ID :");
         Serial.print(txInfo_item_forID);
         Serial.print(" volume : ");
-        Serial.println(jumlahPesanan);
+        Serial.print(jumlahPesanan);
+        Serial.print(" literCount : ");
+        Serial.println(literCounter);
 
         if (txInfo_item_transaction_status == 1)
         {
@@ -314,7 +317,6 @@ void dataDownlink()
             delay(1500);
             kondisiEmergency = digitalRead(pbEmergency);
             delay(150);
-            Serial.println(kondisiEmergency);
             if (kondisiEmergency == 0)
             {
               statMicro = 2;
@@ -384,8 +386,6 @@ void bacaBattrey()
       persenBatt = 0;
     }
     statBatt = String(persenBatt);
-    // Serial.print("Batt: ");
-    // Serial.println(persenBatt);
   }
 }
 
@@ -395,12 +395,12 @@ void loop()
   // StaticJsonDocument<500> doc;
   // EepromStream eepromStream(0, 500);
 
-  // doc["lf"] = 10;
+  // doc["lf"] = 70;
   // doc["lat"] = latitude;
   // doc["long"] = longitude;
   // doc["lfB"] = logCyble;
   // doc["lB"] = logLiter;
-  // doc["reqID"] = "0000000000";
+  // doc["reqID"] = requestID;
   // serializeJson(doc, eepromStream);
   // eepromStream.flush();
 
@@ -409,20 +409,27 @@ void loop()
 
   // Time Millis Count
   static uint32_t upIdleTime_now = millis();
-  static uint32_t timeProgress = millis();
   static uint32_t timeStart = millis();
-  static uint32_t timeReadLF = millis();
   static uint32_t timeTimeout = millis();
 
-  bacaBattrey();
   kondisiEmergency = digitalRead(pbEmergency);
+  SensorState_LF = digitalRead(LF_State);
+  bacaBattrey();
 
   if (SensorState_LF != lastSensorState_LF)
   {
     if (SensorState_LF == LOW)
     {
-      CybleCounter_LF++;
-
+      if (saveCount)
+      {
+        CybleCounter_LF++;
+      }
+      if (idle == 0)
+      {
+        literCounter = literCounter + 100;
+        statMicro = 1;
+        antarMicroProses();
+      }
       StaticJsonDocument<500> doc;
       EepromStream eepromStream(0, 500);
 
@@ -431,45 +438,16 @@ void loop()
       doc["long"] = longitude;
       doc["lfB"] = logCyble;
       doc["lB"] = logLiter;
+      doc["reqID"] = requestID;
       serializeJson(doc, eepromStream);
       eepromStream.flush();
-
-      if (idle == 0)
-      {
-        literCounter = literCounter + 100;
-        statMicro = 1;
-        antarMicroProses();
-        Serial.println(literCounter);
-      }
     }
     lastSensorState_LF = SensorState_LF;
   }
 
   if (idle == 0)
   {
-    if (countInProcess >= 15)
-    {
-      SensorState_LF = digitalRead(LF_State);
-      prosesPengisian();
-    }
-
-    if ((millis() - timeReadLF) > 1000)
-    {
-      timeReadLF = millis();
-      if (countInProcess <= 15)
-      {
-        countInProcess++;
-      }
-    }
-
-    if ((millis() - timeProgress) > (120000 + timeDelay))
-    {
-      timeProgress = millis();
-      flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-      statBatt = String(persenBatt);
-      status = "6"; // Progress Air
-      dataUplink();
-    }
+    prosesPengisian();
   }
 
   if (idle == 1)
@@ -480,8 +458,6 @@ void loop()
     digitalWrite(pbPower, LOW);
     digitalWrite(pinValve, LOW);
     dataDownlink();
-    literCounter = 0;
-    setProgress = 0;
     countInProcess = 0;
     if (countReset)
     {
