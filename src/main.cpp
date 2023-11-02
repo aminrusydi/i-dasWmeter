@@ -188,7 +188,6 @@ void antarMicroProses()
 void endProses()
 {
   static uint32_t sendEndProcess = millis();
-  digitalWrite(pinValve, LOW);
   // Serial.println("Stoping Valve");
   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
@@ -200,13 +199,13 @@ void endProses()
   {
     sendEndProcess = millis();
     countEndProcess++;
-    if (countEndProcess >= 15 && countEndProcess % 2 == 0)
+    if (countEndProcess % 2 == 0)
     {
       dataUplink();
       Serial.println("Uplink");
     }
   }
-  if (countEndProcess >= 30)
+  if (countEndProcess >= 15)
   {
     callEnd = 1;
     digitalWrite(pbPower, LOW);
@@ -229,43 +228,48 @@ void prosesPengisian()
   {
     digitalWrite(pinValve, HIGH);
     digitalWrite(pbPower, HIGH);
-    // Serial.println(CybleCounter_LF);
-  }
-  if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
-  {
-    statMicro = 3;
-    status = "4";
-    antarMicroProses();
-    delay(2000 + timeDelay);
-    callEnd = 1;
-  }
-  if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
-  {
-    statMicro = 3;
-    status = "3";
-    antarMicroProses();
-    delay(2000 + timeDelay);
-    callEnd = 1;
-  }
-  if ((millis() - timeReadLF) > 1000)
-  {
-    timeReadLF = millis();
-    if (countInProcess <= 15)
+
+    if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
     {
-      countInProcess++;
+      statMicro = 3;
+      status = "4";
+      antarMicroProses();
+      delay(2000 + timeDelay);
+      callEnd = 1;
+      digitalWrite(pinValve, LOW);
+      delay(13000);
     }
-  }
-  if (countInProcess >= 15)
-  {
-    saveCount = 1;
-  }
-  if ((millis() - timeProgress) > (120000 + timeDelay))
-  {
-    timeProgress = millis();
-    flowSend = String(CybleCounter_LF) + "," + String(literCounter);
-    statBatt = String(persenBatt);
-    status = "6"; // Progress Air
-    dataUplink();
+    if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
+    {
+      statMicro = 3;
+      status = "3";
+      antarMicroProses();
+      delay(2000 + timeDelay);
+      callEnd = 1;
+      digitalWrite(pinValve, LOW);
+      delay(13000);
+    }
+
+    if ((millis() - timeReadLF) > 1000)
+    {
+      timeReadLF = millis();
+      if (countInProcess <= 15)
+      {
+        countInProcess++;
+      }
+    }
+    if (countInProcess >= 15)
+    {
+      saveCount = 1;
+    }
+    if ((millis() - timeProgress) > (120000 + timeDelay))
+    {
+      timeProgress = millis();
+      flowSend = String(CybleCounter_LF) + "," + String(literCounter);
+      statBatt = String(persenBatt);
+      status = "6"; // Progress Air
+      dataUplink();
+    }
   }
 }
 
@@ -306,6 +310,8 @@ void dataDownlink()
         Serial.print(jumlahPesanan);
         Serial.print(" literCount : ");
         Serial.println(literCounter);
+        Serial.print(" delay : ");
+        Serial.println(timeDelay);
 
         if (txInfo_item_transaction_status == 1)
         {
@@ -314,14 +320,14 @@ void dataDownlink()
             countReset = 0;
             countTimeout = 0;
             digitalWrite(pinValve, HIGH);
-            delay(1500);
+            delay(1500 + timeDelay);
             kondisiEmergency = digitalRead(pbEmergency);
-            delay(150);
+            delay(150 + timeDelay);
             if (kondisiEmergency == 0)
             {
               statMicro = 2;
               antarMicroProses();
-              delay(100);
+              delay(100 + timeDelay);
               digitalWrite(pinValve, LOW);
             }
             else
@@ -333,7 +339,7 @@ void dataDownlink()
               antarMicroProses();
               delay(50 + timeDelay);
               dataUplink();
-              delay(70 + timeDelay);
+              delay(500 + (timeDelay * 2));
               dataUplink();
               idle = 0;
             }
