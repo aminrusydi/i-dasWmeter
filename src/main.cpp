@@ -207,6 +207,7 @@ void endProses()
 
   if ((millis() - sendEndProcess) > (1000 + timeDelay))
   {
+    sendEndProcess = millis();
     countEndProcess++;
     dataUplink();
     Serial.println("Uplink");
