@@ -196,8 +196,7 @@ void antarMicroProses()
 
 void endProses()
 {
-  static uint32_t sendEndProcess;
-  digitalWrite(pinValve, LOW);
+  static uint32_t sendEndProcess = millis();
   Serial.println("Stoping Valve");
   flowSend = String(CybleCounter_LF) + "," + String(literCounter);
   dataLog = String(cybleSebelumnya) + "," + String(literSebelumnya);
@@ -205,7 +204,7 @@ void endProses()
   logCyble = CybleCounter_LF;
   logLiter = literCounter;
 
-  if ((millis() - sendEndProcess) > (1000 + timeDelay))
+  if ((millis() - sendEndProcess) > 1000)
   {
     sendEndProcess = millis();
     countEndProcess++;
@@ -251,7 +250,9 @@ void prosesPengisian()
     statMicro = 3;
     status = "4";
     antarMicroProses();
-    delay(2500);
+    delay(2000 + timeDelay);
+    digitalWrite(pinValve, LOW);
+    delay(500);
     endProses();
   }
   if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
@@ -259,7 +260,9 @@ void prosesPengisian()
     statMicro = 3;
     status = "3";
     antarMicroProses();
-    delay(2500);
+    delay(2000 + timeDelay);
+    digitalWrite(pinValve, LOW);
+    delay(500);
     endProses();
   }
 }
@@ -409,7 +412,6 @@ void loop()
   static uint32_t timeStart = millis();
   static uint32_t timeReadLF = millis();
   static uint32_t timeTimeout = millis();
-  static uint32_t sendEndProcess = millis();
 
   bacaBattrey();
   kondisiEmergency = digitalRead(pbEmergency);
