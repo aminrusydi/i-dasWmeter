@@ -209,8 +209,11 @@ void endProses()
   {
     sendEndProcess = millis();
     countEndProcess++;
-    dataUplink();
-    Serial.println("Uplink");
+    if (countEndProcess % 2 == 0)
+    {
+      dataUplink();
+      Serial.println("Uplink");
+    }
   }
   if (countEndProcess >= 20)
   {
