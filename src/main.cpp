@@ -33,6 +33,7 @@ String status = "";
 String flow = "";
 String flowSend = "";
 String dataLog = "";
+int countEndProcess = 0;
 
 // Variable Logging
 int logCyble;
@@ -40,7 +41,7 @@ int logLiter;
 
 int cybleSebelumnya;
 int literSebelumnya;
-double requestID;
+int requestID;
 
 // battrey
 float battVolt;
@@ -61,7 +62,7 @@ int pembagi;
 int setProgress;
 int statMicro;
 
-const String idDevice = "DASW240002";
+const String idDevice = "DASW240001";
 const int LED2 = 2;
 
 // Config Pin Valve
@@ -195,6 +196,7 @@ void antarMicroProses()
 
 void endProses()
 {
+  static uint32_t sendEndProcess;
   digitalWrite(pinValve, LOW);
   Serial.println("Stoping Valve");
   status = "3";
@@ -203,20 +205,35 @@ void endProses()
   statBatt = String(persenBatt);
   logCyble = CybleCounter_LF;
   logLiter = literCounter;
-  Serial.println("Stoping Process");
-  dataUplink();
-  Serial.println("Uplink");
-  delay(500);
-  Serial.println("Stoping Process");
-  delay(1000);
-  dataUplink();
-  delay(1500);
-  dataUplink();
-  delay(15000);
-  digitalWrite(pbPower, LOW);
-  idle = 1;
-  delay(2000);
-  resetFunc();
+
+  if ((millis() - sendEndProcess) > (1000 + timeDelay))
+  {
+    countEndProcess++;
+    dataUplink();
+    Serial.println("Uplink");
+  }
+  if (countEndProcess >= 20)
+  {
+    digitalWrite(pbPower, LOW);
+    countEndProcess = 0;
+    idle = 1;
+    delay(2000);
+    resetFunc();
+  }
+  //   Serial.println("Stoping Process");
+  // dataUplink();
+  // Serial.println("Uplink");
+  // delay(500);
+  // Serial.println("Stoping Process");
+  // delay(1000);
+  // dataUplink();
+  // delay(1500);
+  // dataUplink();
+  // delay(5000);
+  // dataUplink();
+  // delay(5000);
+  // dataUplink();
+  // delay(15000);
 }
 
 void prosesPengisian()
@@ -265,12 +282,14 @@ void dataDownlink()
       int txInfo_item_transaction_volume = txInfo_item["transaction"]["volume"]; // 0, 0
       int txInfo_item_transaction_id = txInfo_item["transaction"]["reqID"];      // 0, 0
       int txInfo_item_transaction_delay = txInfo_item["transaction"]["delay"];
+      int txInfo_item_transaction_count = txInfo_item["transaction"]["startCnt"];
 
       if (String(txInfo_item_forID) == idDevice)
       {
         jumlahPesanan = txInfo_item_transaction_volume;
         requestID = txInfo_item_transaction_id;
         timeDelay = txInfo_item_transaction_delay;
+        literCounter = txInfo_item_transaction_count;
         Serial.print("ID :");
         Serial.print(txInfo_item_forID);
         Serial.print(" volume : ");
@@ -385,6 +404,7 @@ void loop()
   static uint32_t timeStart = millis();
   static uint32_t timeReadLF = millis();
   static uint32_t timeTimeout = millis();
+  static uint32_t sendEndProcess = millis();
 
   bacaBattrey();
   kondisiEmergency = digitalRead(pbEmergency);
