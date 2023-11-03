@@ -55,6 +55,7 @@ int countTimeout = 0;
 
 // Kondisi Proses
 bool callEnd = 0;
+bool callProcess = 0;
 bool snyc = 1;
 bool idle = 1;
 bool process = 0;
@@ -79,10 +80,6 @@ int literCounter = 0;
 int CybleCounter_LF;
 int SensorState_LF = 0;
 int lastSensorState_LF = 0;
-
-int CybleCounter_HF = 0;
-int SensorState_HF = 0;
-int lastSensorState_HF = 0;
 
 int CableState = 0;
 int DIRState = 0;
@@ -133,6 +130,7 @@ void setup()
 
   delay(1000);
   Serial.println("System Ready");
+  saveCount = 1;
 }
 
 void (*resetFunc)(void) = 0;
@@ -223,29 +221,30 @@ void prosesPengisian()
   static uint32_t timeProgress = millis();
   Serial.print("E: ");
   Serial.println(kondisiEmergency);
+  Serial.print("S: ");
+  Serial.println(SensorState_LF);
 
   if (!callEnd)
   {
     digitalWrite(pinValve, HIGH);
     digitalWrite(pbPower, HIGH);
-
     if (kondisiEmergency == 0 || (persenBatt >= 10 && persenBatt <= 23))
     {
+      callEnd = 1;
       statMicro = 3;
       status = "4";
       antarMicroProses();
       delay(2000 + timeDelay);
-      callEnd = 1;
       digitalWrite(pinValve, LOW);
       delay(13000);
     }
     if ((literCounter >= jumlahPesanan) && persenBatt >= 23)
     {
+      callEnd = 1;
       statMicro = 3;
       status = "3";
       antarMicroProses();
       delay(2000 + timeDelay);
-      callEnd = 1;
       digitalWrite(pinValve, LOW);
       delay(13000);
     }
@@ -315,6 +314,7 @@ void dataDownlink()
 
         if (txInfo_item_transaction_status == 1)
         {
+          saveCount = 0;
           if (persenBatt >= 20)
           {
             countReset = 0;
@@ -332,16 +332,20 @@ void dataDownlink()
             }
             else
             {
+              idle = 0;
               cybleSebelumnya = logCyble;
               literSebelumnya = logLiter;
+              flowSend = "0,0";
+              dataLog = String(logCyble) + "," + String(logLiter);
               status = "2"; // Transaction Received
               statMicro = 1;
               antarMicroProses();
               delay(50 + timeDelay);
               dataUplink();
-              delay(500 + (timeDelay * 2));
+              delay(1000 + (timeDelay * 2));
               dataUplink();
-              idle = 0;
+              delay((1000 + timeDelay) + (timeDelay * 2));
+              dataUplink();
             }
           }
         }
@@ -352,6 +356,8 @@ void dataDownlink()
           status = "2"; // Transaction Received
           cybleSebelumnya = logCyble;
           literSebelumnya = logLiter;
+          flowSend = "0,0";
+          dataLog = String(logCyble) + "," + String(logLiter);
           Serial.print("Pesanan Masuk : ");
           Serial.println(jumlahPesanan);
           delay(150 + timeDelay);
@@ -495,7 +501,5 @@ void loop()
   if (callEnd)
   {
     endProses();
-    Serial.print("Count End :");
-    Serial.println(countEndProcess);
   }
 }
